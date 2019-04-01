@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
-__author__      = "Mario Carrillo"
+__author__      = "Mario Carrillo/Victor Rodriguez"
 
 import random
 import time
 import argparse
+import json
+
 
 from influxdb import InfluxDBClient
 
-INFLUX_SERVER = ""
-INFLUX_PORT = ""
-INFLUX_PASS = ""
-INFLUX_USER = ""
+INFLUX_SERVER = "vmrod-ubuntu-devel.zpn.intel.com"
+INFLUX_PORT = "8086"
+INFLUX_PASS = "root"
+INFLUX_USER = "root"
 
 def send_data(json_file):
 
@@ -46,6 +48,8 @@ def main():
         help='user of the influxdb server')
     parser.add_argument('--password',\
         help='password of the influxdb server')
+    parser.add_argument('--json_file',\
+        help='json file with the data to insert')
 
     args = parser.parse_args()
 
@@ -57,30 +61,8 @@ def main():
         INFLUX_PASS = args.password
     if args.user:
         INFLUX_USER = args.password
-
-    # Table information
-    table = "vm_metrics"
-    test_name = "vm_boottime"
-    test_units = "ms"
-    # Data to be inserted
-    current_date = time.strftime("%c")
-    value = round(random.uniform(0.1, 10),2)
-    json_file = [
-        {
-            "measurement": table,
-            "time": current_date,
-            "fields": {
-                "test" : test_name,
-                "unit": test_units,
-                "value": value
-            }
-        }
-    ]
-
-    if INFLUX_SERVER and INFLUX_PORT and INFLUX_PASS and INFLUX_USER:
-        client = send_data(json_file)
-
-    check_data(client,table)
+    if args.json_file:
+        json_file_path = args.json_file
 
 if __name__ == '__main__':
     main()
