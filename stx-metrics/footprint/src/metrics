@@ -13,8 +13,11 @@ import random
 
 from insertdb import send_data
 from insertdb import check_data
+from insertdb import get_server_data
 
 current_date = ""
+send_data_flag = False
+table = "vm_metrics"
 
 def get_time(space):
     proc = subprocess.Popen(['systemd-analyze','time'],stdout=subprocess.PIPE)
@@ -84,7 +87,7 @@ def get_cpu_utilization(seconds):
         print('%5.1f%%' % utilisation)
         total_util += utilisation
         list_data.append(utilisation)
-        sleep(delay)
+        time.sleep(delay)
         loop = loop +1
         if loop >= loops:
             break
@@ -119,7 +122,10 @@ def print_hd_footprint():
     print("avail_hd = " + avail_hd)
     print("per_hd = " + per_hd)
     value = round(random.uniform(0.1, 10),2)
-    return write_json_data("vm_metrics","vm_boottime","ms",value)
+    json_data = write_json_data("vm_metrics","vm_boottime","ms",value)
+    if send_data_flag:
+        client = send_data(json_data)
+        #check_data(client,table)
 
 def print_boottime():
 
@@ -132,13 +138,8 @@ def print_boottime():
     print ("kernel space boot time = " + kernel_time)
     print ("user space boot time = " + userspace_time)
 
-    data['boot_time'] = []
-    data['boot_time'].append({
-        'kernel_space': kernel_time,
-        'user_space': userspace_time
-    })
-
 def print_memory_footprint():
+
     mem_total,mem_used = memory_footprint("Mem")
     print("\n===================================")
     print(" Virtual Memory Footprint")
@@ -147,22 +148,10 @@ def print_memory_footprint():
     print ("    total = " + mem_total)
     print ("    used = " + mem_used)
 
-    data['memory'] = []
-    data['memory'].append({
-        'memory_total': mem_total,
-        'memory_used': mem_used
-    })
-
     mem_total,mem_used = memory_footprint("Swap")
     print ("\nSwap memory\n")
     print ("    total = " + mem_total)
     print ("    used = " + mem_used)
-
-    data['swap_memory'] = []
-    data['swap_memory'].append({
-        'memory_total': mem_total,
-        'memory_used': mem_used
-    })
 
 def print_cpu_utilization(time):
     print("\n===================================")
@@ -171,12 +160,6 @@ def print_cpu_utilization(time):
     average,stdev_result = get_cpu_utilization(int(time))
     print ("Average CPU utilization = %5.1f%%" % average)
     print ("Standard Deviation = %5.1f%%" % stdev_result)
-
-    data['cpu'] = []
-    data['cpu'].append({
-        'cpu_utilization': average,
-        'stdev':stdev_result
-    })
 
 def print_host_data():
     print("\n===================================")
@@ -188,13 +171,14 @@ def print_host_data():
         print (FILE.read())
 
 def generate_json(data):
-
     with open('data.json', 'w') as outfile:
         json.dump(data, outfile)
 
 def main():
 
     global current_date
+    global send_data_flag
+
     current_date = time.strftime("%c")
 
     parser = argparse.ArgumentParser()
@@ -209,10 +193,19 @@ def main():
         action='store_true')
     parser.add_argument('--cpu_utilization',\
         help='Print cpu utilization over X seconds')
+
+    parser.add_argument('--send_data',\
+        action='store_true',\
+        help='Store data at Influx DB')
+
     args = parser.parse_args()
 
     print_host_data()
     total_time = 120
+
+    if args.send_data:
+        get_server_data()
+        send_data_flag = True
 
     if args.boottime:
         print_boottime()
@@ -232,18 +225,10 @@ def main():
 
     else:
 
-        json_data = print_hd_footprint()
-
-        # Table information
-        table = "vm_metrics"
-        #test_name = "vm_boottime"
-        #test_units = "ms"
-
-        # Data to be inserted
-        #value = round(random.uniform(0.1, 10),2)
-
-        client = send_data(json_data)
-        check_data(client,table)
+        print_boottime()
+        print_hd_footprint()
+        print_memory_footprint()
+        print_cpu_utilization(total_time)
 
 if __name__ == "__main__":
     main()

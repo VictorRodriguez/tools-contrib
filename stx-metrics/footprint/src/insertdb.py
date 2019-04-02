@@ -6,24 +6,28 @@ import random
 import time
 import argparse
 import json
-
+import os
 
 from influxdb import InfluxDBClient
 
-INFLUX_SERVER = "vmrod-ubuntu-devel.zpn.intel.com"
-INFLUX_PORT = "8086"
-INFLUX_PASS = "root"
-INFLUX_USER = "root"
+INFLUX_SERVER = ""
+INFLUX_PORT = ""
+INFLUX_PASS = ""
+INFLUX_USER = ""
 
 def send_data(json_file):
 
-    client = InfluxDBClient(INFLUX_SERVER, INFLUX_PORT,
-                                INFLUX_USER, INFLUX_PASS, 'starlingx')
-    if client.write_points(json_file):
-        print("Data inserted successfully")
+    if INFLUX_SERVER and INFLUX_PORT and INFLUX_PASS and INFLUX_USER:
+        client = InfluxDBClient(INFLUX_SERVER, INFLUX_PORT,
+                                    INFLUX_USER, INFLUX_PASS, 'starlingx')
+        if client.write_points(json_file):
+            print("Data inserted successfully")
+        else:
+            print("Error during data insertion")
+        return client
     else:
-        print("Error during data insertion")
-    return client
+        print("Error the server is not configured yet: server.conf")
+        return None
 
 def check_data(client,table):
 
@@ -32,37 +36,59 @@ def check_data(client,table):
     print("%s contains:" % table)
     print(result)
 
-def main():
+def get_server_data():
 
     global INFLUX_SERVER
     global INFLUX_PORT
     global INFLUX_PASS
     global INFLUX_USER
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--server',\
-        help='addres of the influxdb server')
-    parser.add_argument('--port',\
-        help='port of the influxdb server')
-    parser.add_argument('--user',\
-        help='user of the influxdb server')
-    parser.add_argument('--password',\
-        help='password of the influxdb server')
-    parser.add_argument('--json_file',\
-        help='json file with the data to insert')
+    config_file = "server.conf"
 
-    args = parser.parse_args()
+    if os.path.isfile(config_file):
+        FILE = open(config_file, "r")
+        for line in FILE:
+            if "#" in line:
+                pass
+            if "INFLUX_SERVER" in line:
+                INFLUX_SERVER = line.split("=")[1].strip()
+            if "INFLUX_PORT" in line:
+                INFLUX_PORT = line.split("=")[1].strip()
+            if "INFLUX_PASS" in line:
+                INFLUX_PASS = line.split("=")[1].strip()
+            if "INFLUX_USER" in line:
+                INFLUX_USER = line.split("=")[1].strip()
+    else:
+        print("Error server.conf missing")
 
-    if args.server:
-        INFLUX_SERVER = args.server
-    if args.port:
-        INFLUX_PORT = args.port
-    if args.password:
-        INFLUX_PASS = args.password
-    if args.user:
-        INFLUX_USER = args.password
-    if args.json_file:
-        json_file_path = args.json_file
+    # Table information
+    table = "vm_metrics"
+    test_name = "vm_boottime"
+    test_units = "ms"
+    # Data to be inserted
+    current_date = time.strftime("%c")
+    value = round(random.uniform(0.1, 10),2)
+    json_file = [
+        {
+            "measurement": table,
+            "time": current_date,
+            "fields": {
+                "test" : test_name,
+                "unit": test_units,
+                "value": value
+            }
+        }
+    ]
+
+    send_data(json_file)
+
+def main():
+    get_server_data()
+    print(INFLUX_SERVER)
+    print(INFLUX_PORT)
+    print(INFLUX_PASS)
+    print(INFLUX_USER)
+
 
 if __name__ == '__main__':
     main()
