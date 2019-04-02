@@ -81,6 +81,25 @@ def main():
         client = send_data(json_file)
         check_data(client,table)
 
+        time.sleep(10)
+        current_date = time.strftime("%c")
+        test_name = "vm_boottime_2"
+        value = round(random.uniform(0.1, 10),2)
+        json_file = [
+            {
+                "measurement": table,
+                "time": current_date,
+                "fields": {
+                    "test" : test_name,
+                    "unit": test_units,
+                    "value": value
+                }
+            }
+        ]
+
+        client = send_data(json_file)
+        check_data(client,table)
+
 if __name__ == '__main__':
     main()
 

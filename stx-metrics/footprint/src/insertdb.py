@@ -7,6 +7,7 @@ import time
 import argparse
 import json
 import os
+import logging
 
 from influxdb import InfluxDBClient
 
@@ -15,19 +16,16 @@ INFLUX_PORT = ""
 INFLUX_PASS = ""
 INFLUX_USER = ""
 
-def send_data(json_file):
-
-    if INFLUX_SERVER and INFLUX_PORT and INFLUX_PASS and INFLUX_USER:
-        client = InfluxDBClient(INFLUX_SERVER, INFLUX_PORT,
-                                    INFLUX_USER, INFLUX_PASS, 'starlingx')
+def send_data(json_file,client):
+    if client:
         if client.write_points(json_file):
-            print("Data inserted successfully")
+            logging.info("Data inserted successfully")
+            return True
         else:
-            print("Error during data insertion")
-        return client
+            logging.error("Error during data insertion")
     else:
-        print("Error the server is not configured yet: server.conf")
-        return None
+        logging.warning("Error the server is not configured yet: server.conf")
+        return False
 
 def check_data(client,table):
 
@@ -35,6 +33,26 @@ def check_data(client,table):
     result = client.query(query)
     print("%s contains:" % table)
     print(result)
+
+def check_db_status(db_name):
+    try:
+        dbclient = InfluxDBClient(INFLUX_SERVER,\
+                INFLUX_PORT,\
+                INFLUX_USER,\
+                INFLUX_PASS)
+        dblist = dbclient.get_list_database()
+        db_found = False
+        for db in dblist:
+            if db['name'] == db_name:
+                db_found = True
+        if not(db_found):
+            logging.info('Database <%s> not found, trying to create it', db_name)
+            dbclient.create_database(db_name)
+        return True
+    except Exception as e:
+        logging.error('Error querying open-nti database: %s', e)
+        return False
+
 
 def get_server_data():
 
@@ -44,6 +62,7 @@ def get_server_data():
     global INFLUX_USER
 
     config_file = "server.conf"
+    client = None
 
     if os.path.isfile(config_file):
         FILE = open(config_file, "r")
@@ -58,8 +77,23 @@ def get_server_data():
                 INFLUX_PASS = line.split("=")[1].strip()
             if "INFLUX_USER" in line:
                 INFLUX_USER = line.split("=")[1].strip()
+            if "DB_NAME" in line:
+                DB_NAME = line.split("=")[1].strip()
+        if INFLUX_SERVER and INFLUX_PORT and INFLUX_PASS and INFLUX_USER:
+            if check_db_status(DB_NAME):
+                client = InfluxDBClient(INFLUX_SERVER, INFLUX_PORT,
+                                            INFLUX_USER, INFLUX_PASS,DB_NAME)
     else:
-        print("Error server.conf missing")
+        logging.error("Error server.conf missing")
+
+    return client
+
+def main():
+    client = get_server_data()
+    print(INFLUX_SERVER)
+    print(INFLUX_PORT)
+    print(INFLUX_PASS)
+    print(INFLUX_USER)
 
     # Table information
     table = "vm_metrics"
@@ -80,15 +114,7 @@ def get_server_data():
         }
     ]
 
-    send_data(json_file)
-
-def main():
-    get_server_data()
-    print(INFLUX_SERVER)
-    print(INFLUX_PORT)
-    print(INFLUX_PASS)
-    print(INFLUX_USER)
-
+    send_data(json_file,client)
 
 if __name__ == '__main__':
     main()
