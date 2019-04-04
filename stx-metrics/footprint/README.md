@@ -1,23 +1,37 @@
-# metrics
+# Starling X footprint test case
 
-This project add the capability to measure 4 basic footprint parts:
+## Getting Started
+
+This test case add the capability to measure 4 basic footprint parts:
 
 	* boot time
 	* hard drive footprint
 	* virtual memory footprint
 	* Average CPU % utilzation
 
-## How to run it:
+### Installing
 
 ```
-	python metrics.py
+python setup.py build
+python setup.py install
 ```
 
-or:
+### How to run test case
+
+
+After installing
 
 ```
-usage: metrics.py [-h] [--boottime] [--hd_footprint] [--memory_footprint]
-                  [--cpu_utilization CPU_UTILIZATION]
+	metrics.py
+```
+
+This will get all the metrics and print the result on the screen
+
+If we want to run an specific test case:
+
+```
+usage: metrics [-h] [--boottime] [--hd_footprint] [--memory_footprint]
+               [--cpu_utilization CPU_UTILIZATION] [--send_data]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -26,32 +40,15 @@ optional arguments:
   --memory_footprint    Print virtual memory footprint
   --cpu_utilization CPU_UTILIZATION
                         Print cpu utilization over X seconds
+  --send_data           Store data at Influx DB
 ```
+
 ## FluxDB DB injection
 
 This project also has a short guide to inject metrics results in a [InfluxDB]
 database, this is in order to be plotted by [Grafana] project and track
 different relevant performance metrics of [StarlingX] project.
 
-**NOTE:**
-This basic script includes hard-code and this have to be just a **reference**
-about how to inject information in a remote server and which configuration
-has to be set in this server in order to receive the metrics values correctly.
-
-This group of instructions was testd in Ubuntu 18.04.
-
-
-**Insert data**
-
-```
-$ python3 insertdb.py
-```
-
-**Database query**
-
-```
-$ python3 querydb.py
-```
 
 ### Configuration
 
@@ -64,6 +61,16 @@ require the next configuration.
 $ sudo apt-get install python-influxdb
 ```
 
+In the client section remember to set correctly the server.conf in the same
+level where the script is running:
+
+```
+INFLUX_SERVER=<the address of the server where DB will be hosted>
+INFLUX_PORT=<PORT>
+INFLUX_PASS=<DB password>
+INFLUX_USER=<DB user>
+DB_NAME=<DB name, i.e: starlingx>
+```
 #### Server
 
 Install [InfluxDB] and [Grafana] and dependencies
@@ -80,24 +87,33 @@ $ sudo systemctl start influxdb
 $ sudo systemctl start grafana
 ```
 
-Start interactive mode
+Start interactive mode to check the data has been injected correctly:
 
 ```
 $ influx
+$ use starlingx
+$ select * from hd_footprint (as an example)
 ```
 
-Set the DB configuration inside [InfluxDB] client.
-```
-> create database starlingx
-> show databases
-> use starlingx
-> insert release_19_01,test=vm_boottime value=0.64
-> select * from release_19_01
-name: release_19_01
-time			test		value
-----			----		-----
-1553710826819450479	vm_boottime	0.64
-```
+## Versioning
+
+We use [SemVer](http://semver.org/) for versioning.
+
+## Authors
+
+* **VictorRodriguez** - *Initial work* - [VictorRodriguez](https://github.com/VictorRodriguez)
+
+See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+## TODO
+
+Please feel free to add as many requests as you have:
+
+https://etherpad.openstack.org/p/stx_performance_feedback
 
 [Grafana]: https://grafana.com/
 [InfluxDB]: https://github.com/influxdata/influxdb
