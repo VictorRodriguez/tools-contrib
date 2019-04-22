@@ -226,10 +226,18 @@ def print_host_data():
     print("\n===================================")
     print(" HOST INFO")
     print("===================================\n")
-    filename = '/etc/lsb-release'
-    if os.path.isfile(filename):
-        FILE = open(filename,"r")
+
+    lsb_file = '/etc/lsb-release'
+    centos_file = '/etc/centos-release'
+
+    if os.path.isfile(lsb_file):
+        FILE = open(lsb_file,"r")
         print (FILE.read())
+    elif os.path.isfile(centos_file):
+        FILE = open(centos_file,"r")
+        print (FILE.read())
+    else:
+        print("No host info found")
 
 
 def generate_json(data):
